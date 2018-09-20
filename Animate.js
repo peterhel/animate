@@ -11,8 +11,6 @@ class Animate extends React.Component {
         }
         this.animationsEnded[e.animationName] = true;
         if (Object.values(this.animationsEnded).every(x => x)) {
-            this.setState({ showProgressPopover: true });
-
             Object.keys(this.animationsEnded).forEach(x => {
                 this.animationsEnded[x] = false;
             });
