@@ -2,6 +2,9 @@ import React from 'react';
 import shortid from 'shortid-36';
 
 class Animate extends React.Component {
+    state = {
+        ready: false,
+    };
     animationsEnded = {};
     animations = {};
     children = [];
@@ -11,9 +14,10 @@ class Animate extends React.Component {
         }
         this.animationsEnded[e.animationName] = true;
         if (Object.values(this.animationsEnded).every(x => x)) {
-            Object.keys(this.animationsEnded).forEach(x => {
-                this.animationsEnded[x] = false;
-            });
+            this.inProgress = false;
+
+            document.body.removeChild(this.styleElement);
+            this.styleElement = null;
 
             if ('function' === typeof this.props.onAnimationEnd) {
                 this.props.onAnimationEnd();
@@ -22,6 +26,9 @@ class Animate extends React.Component {
     };
 
     render = () => {
+        if (!this.state.ready) {
+            return null;
+        }
         return React.Children.map(this.props.children, child => {
             const animation = `${Object.entries(this.animations)
                 .map(([name, args]) => `${name} ${args}`)
@@ -35,12 +42,21 @@ class Animate extends React.Component {
         });
     };
 
-    componentDidMount = () => {
-        window.addEventListener('animationend', this.handleAnimationEnd);
+    inProgress = false;
 
+    componentDidUpdate = () => {
+        if (!this.inProgress) {
+            this.init();
+        }
+    };
+    init = () => {
+        this.inProgress = true;
         this.styleElement = document.createElement('style');
 
         const keyframesFrags = [];
+
+        this.animations = {};
+        this.animationsEnded = {};
 
         this.props.animations.forEach(({ args, keyframes: _keyframes }) => {
             const menuAnimationId = shortid.generate();
@@ -60,12 +76,16 @@ class Animate extends React.Component {
         });
         this.styleElement.innerHTML = keyframesFrags.join('');
         document.body.appendChild(this.styleElement);
+        this.setState({ ready: true });
+    };
+
+    componentDidMount = () => {
+        window.addEventListener('animationend', this.handleAnimationEnd);
+        this.init();
     };
 
     componentWillUnmount = () => {
         window.removeEventListener('animationend', this.handleAnimationEnd);
-        document.body.removeChild(this.styleElement);
-        this.styleElement = null;
     };
 }
 
