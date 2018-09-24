@@ -1,13 +1,30 @@
 import React from 'react';
 import shortid from 'shortid-36';
+import ReactDOM from 'react-dom';
 
 class Animate extends React.Component {
     state = {
         ready: false,
+        width: 0,
     };
     animationsEnded = {};
+    animationsStarted = {};
     animations = {};
     children = [];
+    target = React.createRef();
+
+    handleAnimationStart = e => {
+        if ('boolean' !== typeof this.animationsStarted[e.animationName]) {
+            return;
+        }
+        this.animationsStarted[e.animationName] = true;
+        if (Object.values(this.animationsStarted).every(x => x)) {
+            if ('function' === typeof this.props.onAnimationStart) {
+                this.props.onAnimationStart();
+            }
+        }
+    };
+
     handleAnimationEnd = e => {
         if ('boolean' !== typeof this.animationsEnded[e.animationName]) {
             return;
@@ -26,13 +43,21 @@ class Animate extends React.Component {
     };
 
     render = () => {
-        if (!this.state.ready) {
-            return null;
-        }
         return React.Children.map(this.props.children, child => {
             const animation = `${Object.entries(this.animations)
                 .map(([name, args]) => `${name} ${args}`)
                 .join(', ')}`;
+
+            if (!this.state.ready) {
+                return React.cloneElement(child, {
+                    style: {
+                        ...child.props.style,
+                        opacity: 0,
+                    },
+                    ref: this.target,
+                });
+            }
+
             return React.cloneElement(child, {
                 style: {
                     ...child.props.style,
@@ -42,15 +67,13 @@ class Animate extends React.Component {
         });
     };
 
-    inProgress = false;
+    initializing = false;
 
-    componentDidUpdate = () => {
-        if (!this.inProgress) {
-            this.init();
-        }
-    };
     init = () => {
-        this.inProgress = true;
+        if (this.initializing) {
+            return;
+        }
+        this.initializing = true;
         this.styleElement = document.createElement('style');
 
         const keyframesFrags = [];
@@ -62,7 +85,7 @@ class Animate extends React.Component {
             const menuAnimationId = shortid.generate();
             let keyframes;
             if ('function' === typeof _keyframes) {
-                keyframes = _keyframes(this.props);
+                keyframes = _keyframes({ ...this.props, width: this.state.width });
             } else {
                 keyframes = _keyframes;
             }
@@ -73,19 +96,38 @@ class Animate extends React.Component {
 
             this.animations[menuAnimationId] = args;
             this.animationsEnded[menuAnimationId] = false;
+            this.animationsStarted[menuAnimationId] = false;
         });
         this.styleElement.innerHTML = keyframesFrags.join('');
         document.body.appendChild(this.styleElement);
+
         this.setState({ ready: true });
+    };
+
+    pollTargetClientRect = () => {
+        let clientRect;
+        try {
+            const node = ReactDOM.findDOMNode(this.target.current);
+            clientRect = node.getBoundingClientRect();
+            this.setState({ width: clientRect.width }, () => {
+                this.init();
+            });
+        } catch (e) {}
+        if (!clientRect) {
+            window.requestAnimationFrame(this.pollTargetClientRect);
+        }
     };
 
     componentDidMount = () => {
         window.addEventListener('animationend', this.handleAnimationEnd);
-        this.init();
+        window.addEventListener('animationstart', this.handleAnimationStart);
+
+        this.pollTargetClientRect();
     };
 
     componentWillUnmount = () => {
         window.removeEventListener('animationend', this.handleAnimationEnd);
+        window.removeEventListener('animationstart', this.handleAnimationStart);
     };
 }
 
