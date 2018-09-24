@@ -6,9 +6,10 @@ Usage
 <Animate
   animations={[{
                         args: `2s 5`,
-                        keyframes: `0% {color: rgba(175,175,175,.6)} 50% {color: rgba(175,175,175,1)} 100% {color: rgba(175,175,175,.6)}`,
+                        keyframes: targetWidth => `0% {color: rgba(175,175,175,.6)} 50% {color: rgba(175,175,175,1)} 100% {color: rgba(175,175,175,.6)}`,
   }]}
-  onAnimationEnd={() => this.setState({ noMoreHello: true })}
+  onAnimationStart={this.handleAnimationStart}
+  onAnimationEnd={this.handleAnimationEnd}
 >
   <div>Hello Animation</div>
 </Animate>
